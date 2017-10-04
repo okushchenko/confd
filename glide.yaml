@@ -1,0 +1,42 @@
+package: github.com/kelseyhightower/confd
+import:
+- package: github.com/BurntSushi/toml
+  version: ^0.3.0
+- package: github.com/Sirupsen/logrus
+  version: ^1.0.3
+- package: github.com/aws/aws-sdk-go
+  version: ^1.12.4
+  subpackages:
+  - aws
+  - aws/session
+  - private/protocol/json/jsonutil
+  - service/dynamodb
+  - service/ssm
+- package: github.com/coreos/etcd
+  version: 3.2.8
+  subpackages:
+  - client
+  - clientv3
+- package: github.com/fsnotify/fsnotify
+  version: ^1.4.2
+- package: github.com/garyburd/redigo
+  version: ^1.1.0
+  subpackages:
+  - redis
+- package: github.com/hashicorp/consul
+  version: 0.9.3
+  subpackages:
+  - api
+- package: github.com/hashicorp/vault
+  version: 0.8.1
+  subpackages:
+  - api
+- package: github.com/kelseyhightower/memkv
+  version: ^0.1.1
+- package: github.com/samuel/go-zookeeper
+  subpackages:
+  - zk
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: gopkg.in/yaml.v2
