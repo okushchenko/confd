@@ -2,6 +2,7 @@ package consul
 
 import (
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/consul/api"
@@ -65,15 +66,19 @@ type watchResponse struct {
 	err       error
 }
 
-func (c *ConsulClient) WatchPrefix(prefix string, keys []string, waitIndex uint64, stopChan chan bool) (uint64, error) {
+func (c *ConsulClient) WatchPrefix(prefix string, keys []string, waitIndex string, stopChan chan bool) (string, error) {
+	parsedWaitIndex, err := strconv.ParseUint(waitIndex, 10, 64)
+	if err != nil {
+		return "", nil
+	}
 	respChan := make(chan watchResponse)
 	go func() {
 		opts := api.QueryOptions{
-			WaitIndex: waitIndex,
+			WaitIndex: parsedWaitIndex,
 		}
 		_, meta, err := c.client.List(prefix, &opts)
 		if err != nil {
-			respChan <- watchResponse{waitIndex, err}
+			respChan <- watchResponse{parsedWaitIndex, err}
 			return
 		}
 		respChan <- watchResponse{meta.LastIndex, err}
@@ -83,6 +88,6 @@ func (c *ConsulClient) WatchPrefix(prefix string, keys []string, waitIndex uint6
 	case <-stopChan:
 		return waitIndex, nil
 	case r := <-respChan:
-		return r.waitIndex, r.err
+		return strconv.FormatUint(r.waitIndex, 10), r.err
 	}
 }

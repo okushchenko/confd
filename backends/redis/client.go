@@ -152,7 +152,7 @@ func (c *Client) GetValues(keys []string) (map[string]string, error) {
 }
 
 // WatchPrefix is not yet implemented.
-func (c *Client) WatchPrefix(prefix string, keys []string, waitIndex uint64, stopChan chan bool) (uint64, error) {
+func (c *Client) WatchPrefix(prefix string, keys []string, waitIndex string, stopChan chan bool) (string, error) {
 	<-stopChan
-	return 0, nil
+	return waitIndex, nil
 }

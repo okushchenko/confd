@@ -146,12 +146,7 @@ func (c *Client) waitVersion(prefix string, version string) (string, error) {
 	}
 }
 
-func (c *Client) WatchPrefix(prefix string, keys []string, waitIndex uint64, stopChan chan bool) (uint64, error) {
-	// return something > 0 to trigger an initial retrieval from the store
-	if waitIndex == 0 {
-		return 1, nil
-	}
-
+func (c *Client) WatchPrefix(prefix string, keys []string, waitIndex string, stopChan chan bool) (string, error) {
 	respChan := make(chan watchResponse)
 	go func() {
 		version := "init"
@@ -176,7 +171,7 @@ func (c *Client) WatchPrefix(prefix string, keys []string, waitIndex uint64, sto
 		case <-stopChan:
 			return waitIndex, nil
 		case r := <-respChan:
-			return r.waitIndex, r.err
+			return strconv.FormatUint(r.waitIndex, 10), r.err
 		}
 	}
 }

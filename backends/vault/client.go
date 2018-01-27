@@ -207,9 +207,9 @@ func flatten(key string, value interface{}, vars map[string]string) {
 }
 
 // recursively walk the branches in the Vault, adding to branches map
-func walkTree(c *Client, key string, branches map[string]bool) (error) {
+func walkTree(c *Client, key string, branches map[string]bool) error {
 	log.Debug("listing %s from vault", key)
-	
+
 	// strip trailing slash as long as it's not the only character
 	if last := len(key) - 1; last > 0 && key[last] == '/' {
 		key = key[:last]
@@ -231,11 +231,11 @@ func walkTree(c *Client, key string, branches map[string]bool) (error) {
 	}
 
 	switch resp.Data["keys"].(type) {
-		case []interface{}:
-			// expected
-		default:
-			log.Warning("key list type of '%s' is not supported (%T)", key, resp.Data["keys"])
-			return nil
+	case []interface{}:
+		// expected
+	default:
+		log.Warning("key list type of '%s' is not supported (%T)", key, resp.Data["keys"])
+		return nil
 	}
 
 	keyList := resp.Data["keys"].([]interface{})
@@ -254,7 +254,7 @@ func walkTree(c *Client, key string, branches map[string]bool) (error) {
 }
 
 // WatchPrefix - not implemented at the moment
-func (c *Client) WatchPrefix(prefix string, keys []string, waitIndex uint64, stopChan chan bool) (uint64, error) {
+func (c *Client) WatchPrefix(prefix string, keys []string, waitIndex string, stopChan chan bool) (string, error) {
 	<-stopChan
-	return 0, nil
+	return waitIndex, nil
 }

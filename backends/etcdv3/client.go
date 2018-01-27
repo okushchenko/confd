@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"strconv"
 	"strings"
 	"time"
 
@@ -91,12 +92,7 @@ func (c *Client) GetValues(keys []string) (map[string]string, error) {
 	return vars, nil
 }
 
-func (c *Client) WatchPrefix(prefix string, keys []string, waitIndex uint64, stopChan chan bool) (uint64, error) {
-	// return something > 0 to trigger a key retrieval from the store
-	if waitIndex == 0 {
-		return 1, nil
-	}
-
+func (c *Client) WatchPrefix(prefix string, keys []string, waitIndex string, stopChan chan bool) (string, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancelRoutine := make(chan bool)
 	defer close(cancelRoutine)
@@ -126,10 +122,10 @@ func (c *Client) WatchPrefix(prefix string, keys []string, waitIndex uint64, sto
 			// is reducing the scope of keys that can trigger updates.
 			for _, k := range keys {
 				if strings.HasPrefix(string(ev.Kv.Key), k) {
-					return uint64(ev.Kv.Version), err
+					return strconv.FormatInt(ev.Kv.Version, 10), err
 				}
 			}
 		}
 	}
-	return 0, err
+	return waitIndex, err
 }

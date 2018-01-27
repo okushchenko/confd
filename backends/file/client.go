@@ -64,32 +64,28 @@ func nodeWalk(node map[interface{}]interface{}, key string, vars map[string]stri
 	return nil
 }
 
-func (c *Client) WatchPrefix(prefix string, keys []string, waitIndex uint64, stopChan chan bool) (uint64, error) {
-	if waitIndex == 0 {
-		return 1, nil
-	}
-
+func (c *Client) WatchPrefix(prefix string, keys []string, waitIndex string, stopChan chan bool) (string, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		return 0, err
+		return waitIndex, err
 	}
 	defer watcher.Close()
 
 	err = watcher.Add(c.filepath)
 	if err != nil {
-		return 0, err
+		return waitIndex, err
 	}
 
 	for {
 		select {
 		case event := <-watcher.Events:
 			if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Remove == fsnotify.Remove {
-				return 1, nil
+				return waitIndex, nil
 			}
 		case err := <-watcher.Errors:
-			return 0, err
+			return waitIndex, err
 		case <-stopChan:
-			return 0, nil
+			return waitIndex, nil
 		}
 	}
 	return waitIndex, nil

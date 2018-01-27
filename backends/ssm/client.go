@@ -1,17 +1,22 @@
 package ssm
 
 import (
+	"encoding/json"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/kelseyhightower/confd/log"
 )
 
 type Client struct {
-	client *ssm.SSM
+	client        *ssm.SSM
+	clientKinesis *kinesis.Kinesis
 }
 
 func New() (*Client, error) {
@@ -37,7 +42,11 @@ func New() (*Client, error) {
 
 	// Create the service's client with the session.
 	svc := ssm.New(sess, c)
-	return &Client{svc}, nil
+	k := kinesis.New(sess)
+	return &Client{
+		client:        svc,
+		clientKinesis: k,
+	}, nil
 }
 
 // GetValues retrieves the values for the given keys from AWS SSM Parameter Store
@@ -96,8 +105,70 @@ func (c *Client) getParameter(name string) (map[string]string, error) {
 	return parameters, nil
 }
 
-// WatchPrefix is not implemented
-func (c *Client) WatchPrefix(prefix string, keys []string, waitIndex uint64, stopChan chan bool) (uint64, error) {
-	<-stopChan
-	return 0, nil
+type Event struct {
+	Version    string    `json:"version"`
+	ID         string    `json:"id"`
+	DetailType string    `json:"detail-type"`
+	Source     string    `json:"source"`
+	Account    string    `json:"account"`
+	Time       time.Time `json:"time"`
+	Region     string    `json:"region"`
+	Resources  []string  `json:"resources"`
+	Detail     struct {
+		Name      string `json:"name"`
+		Type      string `json:"type"`
+		Operation string `json:"operation"`
+	} `json:"detail"`
+}
+
+func (c *Client) WatchPrefix(prefix string, keys []string, waitIndex string, stopChan chan bool) (string, error) {
+	log.Debug("Describing stream test")
+	describeStreamOutput, err := c.clientKinesis.DescribeStream(&kinesis.DescribeStreamInput{
+		StreamName: aws.String("test"),
+	})
+	if err != nil {
+		return waitIndex, err
+	}
+	log.Debug("Trying to get shard iterator for %s", *describeStreamOutput.StreamDescription.Shards[0].ShardId)
+	var shardIterator *string
+	if waitIndex == "" {
+		getShardIteratorOutput, err := c.clientKinesis.GetShardIterator(&kinesis.GetShardIteratorInput{
+			ShardId:           describeStreamOutput.StreamDescription.Shards[0].ShardId,
+			StreamName:        aws.String("test"),
+			ShardIteratorType: aws.String(kinesis.ShardIteratorTypeLatest),
+		})
+		if err != nil {
+			return waitIndex, err
+		}
+		log.Debug("Got shard iterator %s", *getShardIteratorOutput.ShardIterator)
+		shardIterator = getShardIteratorOutput.ShardIterator
+	} else {
+		log.Debug("Using previous shard iterator %s", waitIndex)
+		shardIterator = &waitIndex
+		time.Sleep(5 * time.Second)
+	}
+	for {
+		getRecordsOutput, err := c.clientKinesis.GetRecords(&kinesis.GetRecordsInput{
+			ShardIterator: shardIterator,
+		})
+		if err != nil {
+			return *shardIterator, err
+		}
+		log.Debug("Received records %#v", getRecordsOutput.Records)
+		shardIterator = getRecordsOutput.NextShardIterator
+		var event Event
+		for _, record := range getRecordsOutput.Records {
+			err = json.Unmarshal(record.Data, &event)
+			if err != nil {
+				return *shardIterator, err
+			}
+			log.Debug("Record data %#v original time %s", event, event.Time)
+			for _, key := range keys {
+				if strings.HasPrefix(event.Detail.Name, key) {
+					return *shardIterator, nil
+				}
+			}
+		}
+		time.Sleep(5 * time.Second)
+	}
 }

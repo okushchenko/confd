@@ -91,6 +91,9 @@ func (p *watchProcessor) Process() {
 
 func (p *watchProcessor) monitorPrefix(t *TemplateResource) {
 	defer p.wg.Done()
+	if err := t.process(); err != nil {
+		p.errChan <- err
+	}
 	keys := appendPrefix(t.Prefix, t.Keys)
 	for {
 		index, err := t.storeClient.WatchPrefix(t.Prefix, keys, t.lastIndex, p.stopChan)

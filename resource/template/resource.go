@@ -51,7 +51,7 @@ type TemplateResource struct {
 	StageFile     *os.File
 	Uid           int
 	funcMap       map[string]interface{}
-	lastIndex     uint64
+	lastIndex     string
 	keepStageFile bool
 	noop          bool
 	store         memkv.Store
